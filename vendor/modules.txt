@@ -1,0 +1,112 @@
+# code.cloudfoundry.org/cfhttp v2.0.0+incompatible
+code.cloudfoundry.org/cfhttp
+code.cloudfoundry.org/cfhttp/handlers
+code.cloudfoundry.org/cfhttp/unix_transport
+# code.cloudfoundry.org/clock v0.0.0-20180518195852-02e53af36e6c
+code.cloudfoundry.org/clock
+# code.cloudfoundry.org/debugserver v0.0.0-20180612203758-a3ba348dfede
+code.cloudfoundry.org/debugserver
+# code.cloudfoundry.org/dockerdriver v0.0.0-20190430182539-d20038a36dd2
+code.cloudfoundry.org/dockerdriver
+code.cloudfoundry.org/dockerdriver/driverhttp
+code.cloudfoundry.org/dockerdriver/invoker
+# code.cloudfoundry.org/goshims v0.0.0-20190529192408-bb24d2ef71ff
+code.cloudfoundry.org/goshims/filepathshim
+code.cloudfoundry.org/goshims/ioutilshim
+code.cloudfoundry.org/goshims/osshim
+code.cloudfoundry.org/goshims/timeshim
+code.cloudfoundry.org/goshims/bufioshim
+code.cloudfoundry.org/goshims/http_wrap
+code.cloudfoundry.org/goshims/execshim
+code.cloudfoundry.org/goshims/syscallshim
+# code.cloudfoundry.org/lager v2.0.0+incompatible
+code.cloudfoundry.org/lager
+code.cloudfoundry.org/lager/lagerflags
+# code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
+code.cloudfoundry.org/tlsconfig
+# code.cloudfoundry.org/volumedriver v0.0.0-20190624205815-521b41315311
+code.cloudfoundry.org/volumedriver
+code.cloudfoundry.org/volumedriver/mountchecker
+# github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d
+github.com/StackExchange/wmi
+# github.com/aws/aws-sdk-go v1.21.2
+github.com/aws/aws-sdk-go/aws
+github.com/aws/aws-sdk-go/aws/credentials
+github.com/aws/aws-sdk-go/aws/awserr
+github.com/aws/aws-sdk-go/aws/endpoints
+github.com/aws/aws-sdk-go/internal/sdkio
+github.com/aws/aws-sdk-go/internal/ini
+github.com/aws/aws-sdk-go/internal/shareddefaults
+github.com/aws/aws-sdk-go/aws/corehandlers
+github.com/aws/aws-sdk-go/aws/request
+github.com/aws/aws-sdk-go/aws/session
+github.com/aws/aws-sdk-go/private/protocol/rest
+github.com/aws/aws-sdk-go/service/s3
+github.com/aws/aws-sdk-go/aws/awsutil
+github.com/aws/aws-sdk-go/aws/client/metadata
+github.com/aws/aws-sdk-go/aws/client
+github.com/aws/aws-sdk-go/aws/credentials/processcreds
+github.com/aws/aws-sdk-go/aws/credentials/stscreds
+github.com/aws/aws-sdk-go/aws/csm
+github.com/aws/aws-sdk-go/aws/defaults
+github.com/aws/aws-sdk-go/private/protocol
+github.com/aws/aws-sdk-go/aws/signer/v4
+github.com/aws/aws-sdk-go/internal/s3err
+github.com/aws/aws-sdk-go/private/protocol/eventstream
+github.com/aws/aws-sdk-go/private/protocol/eventstream/eventstreamapi
+github.com/aws/aws-sdk-go/private/protocol/restxml
+github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
+github.com/aws/aws-sdk-go/internal/sdkrand
+github.com/aws/aws-sdk-go/service/sts
+github.com/aws/aws-sdk-go/service/sts/stsiface
+github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds
+github.com/aws/aws-sdk-go/aws/credentials/endpointcreds
+github.com/aws/aws-sdk-go/aws/ec2metadata
+github.com/aws/aws-sdk-go/private/protocol/query
+github.com/aws/aws-sdk-go/internal/sdkuri
+github.com/aws/aws-sdk-go/private/protocol/json/jsonutil
+github.com/aws/aws-sdk-go/private/protocol/query/queryutil
+# github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40
+github.com/bmizerany/pat
+# github.com/cloudfoundry/volumedriver v0.0.0-20190624205815-521b41315311
+github.com/cloudfoundry/volumedriver/mountchecker
+github.com/cloudfoundry/volumedriver/oshelper
+# github.com/go-ole/go-ole v1.2.4
+github.com/go-ole/go-ole
+github.com/go-ole/go-ole/oleutil
+# github.com/jacobsa/fuse v0.0.0-20180417054321-cd3959611bcb
+github.com/jacobsa/fuse
+github.com/jacobsa/fuse/fuseops
+github.com/jacobsa/fuse/internal/buffer
+github.com/jacobsa/fuse/internal/freelist
+github.com/jacobsa/fuse/internal/fusekernel
+github.com/jacobsa/fuse/fuseutil
+# github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
+github.com/jinzhu/copier
+# github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
+github.com/jmespath/go-jmespath
+# github.com/kahing/goofys v0.20.0
+github.com/kahing/goofys/api
+github.com/kahing/goofys/internal
+# github.com/konsorten/go-windows-terminal-sequences v1.0.1
+github.com/konsorten/go-windows-terminal-sequences
+# github.com/mitchellh/mapstructure v1.1.2
+github.com/mitchellh/mapstructure
+# github.com/shirou/gopsutil v2.18.12+incompatible
+github.com/shirou/gopsutil/mem
+github.com/shirou/gopsutil/internal/common
+# github.com/sirupsen/logrus v1.4.2
+github.com/sirupsen/logrus
+github.com/sirupsen/logrus/hooks/syslog
+# github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc
+github.com/tedsuo/ifrit
+github.com/tedsuo/ifrit/grouper
+github.com/tedsuo/ifrit/http_server
+github.com/tedsuo/ifrit/sigmon
+# github.com/tedsuo/rata v1.0.0
+github.com/tedsuo/rata
+# github.com/urfave/cli v1.20.0
+github.com/urfave/cli
+# golang.org/x/sys v0.0.0-20190422165155-953cdadca894
+golang.org/x/sys/unix
+golang.org/x/sys/windows
