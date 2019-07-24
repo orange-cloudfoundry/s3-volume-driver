@@ -241,9 +241,10 @@ func newLogger() (lager.Logger, *lager.ReconfigurableSink) {
 	case lagerflags.FATAL:
 		minLagerLogLevel = lager.FATAL
 	default:
-		panic(fmt.Errorf("unknown log level: %s", minLogLevel))
+		panic(fmt.Errorf("unknown log level: %s", lagerConfig.LogLevel))
 	}
 	lRec.SetMinLevel(minLagerLogLevel)
+	return l, lRec
 }
 
 func parseCommandLine() {
