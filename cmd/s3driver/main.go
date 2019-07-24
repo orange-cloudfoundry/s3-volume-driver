@@ -4,6 +4,7 @@ import (
 	"code.cloudfoundry.org/goshims/timeshim"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/cloudfoundry/volumedriver/mountchecker"
 	"github.com/cloudfoundry/volumedriver/oshelper"
 	"github.com/orange-cloudfoundry/s3-volume-driver"
@@ -104,6 +105,7 @@ func main() {
 	var localDriverServer ifrit.Runner
 
 	logger, logTap := newLogger()
+
 	logger.Info("start")
 	defer logger.Info("end")
 
@@ -212,8 +214,36 @@ func createS3DriverUnixServer(logger lager.Logger, client dockerdriver.Driver, a
 func newLogger() (lager.Logger, *lager.ReconfigurableSink) {
 	lagerConfig := lagerflags.ConfigFromFlags()
 	lagerConfig.RedactSecrets = true
+	var sink lager.Sink
 
-	return lagerflags.NewFromConfig("s3-driver-server", lagerConfig)
+	if lagerConfig.TimeFormat == lagerflags.FormatRFC3339 {
+		sink = lager.NewPrettySink(os.Stdout, lager.DEBUG)
+	} else {
+		sink = lager.NewWriterSink(os.Stdout, lager.DEBUG)
+	}
+
+	var err error
+	sink, err = lager.NewRedactingSink(sink, []string{"[Pp]wd", "[Pp]ass", "access_key_id", "secret_access_key", "kmskey_id"}, nil)
+	if err != nil {
+		panic(err)
+	}
+	l, lRec := lagerflags.NewFromSink("s3-driver-server", sink)
+
+	var minLagerLogLevel lager.LogLevel
+
+	switch lagerConfig.LogLevel {
+	case lagerflags.DEBUG:
+		minLagerLogLevel = lager.DEBUG
+	case lagerflags.INFO:
+		minLagerLogLevel = lager.INFO
+	case lagerflags.ERROR:
+		minLagerLogLevel = lager.ERROR
+	case lagerflags.FATAL:
+		minLagerLogLevel = lager.FATAL
+	default:
+		panic(fmt.Errorf("unknown log level: %s", minLogLevel))
+	}
+	lRec.SetMinLevel(minLagerLogLevel)
 }
 
 func parseCommandLine() {
