@@ -6,8 +6,9 @@ import (
 	"strconv"
 )
 
-func vcapUserAndGroup() (uid int, gid int) {
-	vcap, err := user.Lookup("vcap")
+func currentUserAndGroup() (uid int, gid int) {
+	// Ask for the current user.
+	vcap, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
