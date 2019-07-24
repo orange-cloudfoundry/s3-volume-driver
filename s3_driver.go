@@ -565,7 +565,12 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		return err
 	}
 
-	uid, gid := currentUserAndGroup()
+	uid, gid := vcapUserAndGroup()
+	err = d.os.Chown(mountPath, uid, gid)
+	if err != nil {
+		logger.Error("chown-mountdir-failed", err)
+		return err
+	}
 	_, _, err = goofys.Mount(context.Background(), connInfo.Bucket, &goofys.Config{
 		MountPoint: mountPath,
 		DirMode:    0755,

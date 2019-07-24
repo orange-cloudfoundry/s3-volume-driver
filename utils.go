@@ -6,24 +6,23 @@ import (
 	"strconv"
 )
 
-func currentUserAndGroup() (uid int, gid int) {
-	// Ask for the current user.
-	user, err := user.Current()
+func vcapUserAndGroup() (uid int, gid int) {
+	vcap, err := user.Lookup("vcap")
 	if err != nil {
 		panic(err)
 	}
 
 	// Parse UID.
-	uid64, err := strconv.ParseInt(user.Uid, 10, 32)
+	uid64, err := strconv.ParseInt(vcap.Uid, 10, 32)
 	if err != nil {
-		log.Fatalf("Parsing UID (%s): %v", user.Uid, err)
+		log.Fatalf("Parsing UID (%s): %v", vcap.Uid, err)
 		return
 	}
 
 	// Parse GID.
-	gid64, err := strconv.ParseInt(user.Gid, 10, 32)
+	gid64, err := strconv.ParseInt(vcap.Gid, 10, 32)
 	if err != nil {
-		log.Fatalf("Parsing GID (%s): %v", user.Gid, err)
+		log.Fatalf("Parsing GID (%s): %v", vcap.Gid, err)
 		return
 	}
 
