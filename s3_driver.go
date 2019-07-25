@@ -271,7 +271,6 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 	var doMount bool
 	var connInfo ConnectionInfo
 	var mountPath string
-	var wg *sync.WaitGroup
 
 	ret := func() dockerdriver.MountResponse {
 
@@ -356,8 +355,6 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 		} else {
 			// Check the volume to make sure it's still mounted before handing it out again.
 			if !doMount && !d.check(driverhttp.EnvWithLogger(logger, env), volume.Name, volume.Mountpoint) {
-				wg.Add(1)
-				defer wg.Done()
 				if err := d.mount(driverhttp.EnvWithLogger(logger, env), volume.ConnectionInfo, mountPath); err != nil {
 					logger.Error("remount-volume-failed", err)
 					return dockerdriver.MountResponse{Err: fmt.Sprintf("Error remounting volume: %s", err.Error())}
@@ -461,7 +458,7 @@ func (d *S3Driver) restoreState(env dockerdriver.Env) {
 			Name: volume.Name,
 		})
 		if resp.Err != "" {
-			logger.Error("failed-to-mount-volume", err, lager.Data{"name": volume.Name, "bucket": volume.ConnectionInfo.Bucket})
+			logger.Error("failed-to-mount-volume", fmt.Errorf(resp.Err), lager.Data{"name": volume.Name, "bucket": volume.ConnectionInfo.Bucket})
 		}
 	}
 	d.volumesLock.Lock()
