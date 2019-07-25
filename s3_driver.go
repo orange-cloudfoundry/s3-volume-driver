@@ -28,7 +28,7 @@ type ConnectionInfo struct {
 	AccessKeyId     string `mapstructure:"-"`
 	Bucket          string `mapstructure:"bucket"`
 	SecretAccessKey string `mapstructure:"-"`
-	Host            string `mapstructure:"host"`
+	Endpoint        string `mapstructure:"endpoint"`
 	Region          string `mapstructure:"region"`
 	RegionSet       bool   `mapstructure:"region_set"`
 	StorageClass    string `mapstructure:"storage_class"`

@@ -187,7 +187,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		Uid: uint32(uid),
 		Gid: uint32(gid),
 
-		Endpoint:       connInfo.Host,
+		Endpoint:       connInfo.Endpoint,
 		AccessKey:      connInfo.AccessKeyId,
 		SecretKey:      connInfo.SecretAccessKey,
 		Region:         connInfo.Region,
