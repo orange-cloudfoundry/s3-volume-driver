@@ -177,7 +177,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		}
 	}
 
-	_, mfs, err := goofys.Mount(context.Background(), connInfo.Bucket, &goofys.Config{
+	_, _, err := goofys.Mount(context.Background(), connInfo.Bucket, &goofys.Config{
 		MountPoint: mountPath,
 		DirMode:    0755,
 		FileMode:   0644,
@@ -199,7 +199,6 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		ACL:            connInfo.ACL,
 		Subdomain:      connInfo.Subdomain,
 	})
-	mfs.Join()
 	if err != nil {
 		logger.Error("mount-failed: ", err)
 		rm_err := d.os.Remove(mountPath)
