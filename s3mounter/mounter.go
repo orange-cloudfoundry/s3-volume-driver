@@ -21,11 +21,11 @@ func mount(p params.Mount) (*fuse.MountedFileSystem, error) {
 		mountOptions = make(map[string]string)
 	}
 	mountOptions["allow_other"] = ""
-	uid, gid := utils.CurrentUserAndGroup()
+	uid, gid := utils.VcapUserAndGroup()
 	_, mfs, err := goofys.Mount(context.Background(), p.Bucket, &goofys.Config{
 		MountPoint: p.MountPoint,
 
-		DirMode:      0777,
+		DirMode:      0755,
 		FileMode:     0644,
 		MountOptions: mountOptions,
 		Uid:          uint32(uid),
