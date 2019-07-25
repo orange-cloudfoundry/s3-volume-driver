@@ -30,7 +30,7 @@ func main() {
 		PidFilePerm: 0644,
 		LogFileName: utils.MounterLogFile(mounterParams.LogFolder, mounterParams.VolumeName),
 		LogFilePerm: 0640,
-		Umask:       027,
+		Umask:       000,
 	}
 
 	d, err := cntxt.Reborn()

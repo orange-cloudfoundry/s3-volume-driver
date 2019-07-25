@@ -94,6 +94,8 @@ func (d *S3Driver) unmount(logger lager.Logger, name, mountPath, volumeName stri
 		}
 	}
 
+	mounterLogFile := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
+	d.os.Remove(mounterLogFile)
 	err = d.os.Remove(mountPath)
 	if err != nil {
 		logger.Error("remove-mountpoint-failed", err)
