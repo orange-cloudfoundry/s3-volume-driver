@@ -1,18 +1,6 @@
 package main
 
 import (
-	"code.cloudfoundry.org/goshims/timeshim"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"github.com/cloudfoundry/volumedriver/mountchecker"
-	"github.com/cloudfoundry/volumedriver/oshelper"
-	"github.com/orange-cloudfoundry/s3-volume-driver"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"syscall"
-
 	cf_http "code.cloudfoundry.org/cfhttp"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
 	"code.cloudfoundry.org/dockerdriver"
@@ -22,18 +10,35 @@ import (
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/ioutilshim"
 	"code.cloudfoundry.org/goshims/osshim"
+	"code.cloudfoundry.org/goshims/timeshim"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerflags"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"github.com/cloudfoundry/volumedriver/mountchecker"
+	"github.com/cloudfoundry/volumedriver/oshelper"
+	"github.com/orange-cloudfoundry/s3-volume-driver"
+	"github.com/orange-cloudfoundry/s3-volume-driver/driveradmin/driveradminhttp"
+	"github.com/orange-cloudfoundry/s3-volume-driver/driveradmin/driveradminlocal"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
+	"os"
+	"path/filepath"
 )
 
 var atAddress = flag.String(
 	"listenAddr",
 	"127.0.0.1:9750",
 	"host:port to serve volume management functions",
+)
+
+var adminAddress = flag.String(
+	"adminAddr",
+	"127.0.0.1:7590",
+	"host:port to serve process admin functions",
 )
 
 var driversPath = flag.String(
@@ -123,10 +128,6 @@ func main() {
 		invoker.NewRealInvoker(),
 	)
 
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-
 	if *transport == "tcp" {
 		localDriverServer = createS3DriverServer(logger, client, *atAddress, *driversPath, false, false)
 	} else if *transport == "tcp-json" {
@@ -145,19 +146,21 @@ func main() {
 		}, servers...)
 	}
 
+	adminClient := driveradminlocal.NewDriverAdminLocal()
+	adminHandler, _ := driveradminhttp.NewHandler(logger, adminClient)
+	adminServer := http_server.New(*adminAddress, adminHandler)
+
+	servers = append(grouper.Members{
+		{Name: "driveradmin", Runner: adminServer},
+	}, servers...)
+
 	process := ifrit.Invoke(processRunnerFor(servers))
 	logger.Info("started")
 
-	untilTerminated(logger, process)
+	adminClient.SetServerProc(process)
+	adminClient.RegisterDrainable(client)
 
-	// graceful shutdown by unmounting before stop
-	go func() {
-		<-sigs
-		<-process.Wait()
-		client.GracefulShutdown(logger)
-		done <- true
-	}()
-	<-done
+	untilTerminated(logger, process)
 }
 
 func exitOnFailure(logger lager.Logger, err error) {

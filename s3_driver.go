@@ -10,14 +10,10 @@ import (
 	"code.cloudfoundry.org/goshims/timeshim"
 	"code.cloudfoundry.org/lager"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/cloudfoundry/volumedriver/mountchecker"
-	"github.com/kahing/goofys/api"
 	"github.com/mitchellh/mapstructure"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -29,9 +25,9 @@ type S3VolumeInfo struct {
 }
 
 type ConnectionInfo struct {
-	AccessKeyId     string `mapstructure:"access_key_id"`
+	AccessKeyId     string `mapstructure:"-"`
 	Bucket          string `mapstructure:"bucket"`
-	SecretAccessKey string `mapstructure:"secret_access_key"`
+	SecretAccessKey string `mapstructure:"-"`
 	Host            string `mapstructure:"host"`
 	Region          string `mapstructure:"region"`
 	RegionSet       bool   `mapstructure:"region_set"`
@@ -39,7 +35,7 @@ type ConnectionInfo struct {
 	UseContentType  bool   `mapstructure:"use_content_type"`
 	UseSSE          bool   `mapstructure:"use_sse"`
 	UseKMS          bool   `mapstructure:"use_kms"`
-	KMSKeyID        string `mapstructure:"kmskey_id"`
+	KMSKeyID        string `mapstructure:"-"`
 	ACL             string `mapstructure:"acl"`
 	Subdomain       bool   `mapstructure:"subdomain"`
 }
@@ -241,7 +237,7 @@ func (d *S3Driver) Remove(env dockerdriver.Env, removeRequest dockerdriver.Remov
 	}
 
 	if vol.Mountpoint != "" {
-		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), removeRequest.Name, vol.Mountpoint, true); err != nil {
+		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), removeRequest.Name, vol.Mountpoint); err != nil {
 			return dockerdriver.ErrorResponse{Err: err.Error()}
 		}
 	}
@@ -259,376 +255,10 @@ func (d *S3Driver) Remove(env dockerdriver.Env, removeRequest dockerdriver.Remov
 	return dockerdriver.ErrorResponse{}
 }
 
-func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRequest) dockerdriver.MountResponse {
-	logger := env.Logger().Session("mount", lager.Data{"volume": mountRequest.Name})
-	logger.Info("start")
-	defer logger.Info("end")
-
-	if mountRequest.Name == "" {
-		return dockerdriver.MountResponse{Err: "Missing mandatory 'volume_name'"}
-	}
-
-	var doMount bool
-	var connInfo ConnectionInfo
-	var mountPath string
-
-	ret := func() dockerdriver.MountResponse {
-
-		d.volumesLock.Lock()
-		defer d.volumesLock.Unlock()
-
-		volume := d.volumes[mountRequest.Name]
-		if volume == nil {
-			return dockerdriver.MountResponse{Err: fmt.Sprintf("Volume '%s' must be created before being mounted", mountRequest.Name)}
-		}
-
-		mountPath = d.mountPath(driverhttp.EnvWithLogger(logger, env), volume.Name)
-
-		logger.Info("mounting-volume", lager.Data{"id": volume.Name, "mountpoint": mountPath})
-		logger.Info("mount-source", lager.Data{"bucket": volume.ConnectionInfo.Bucket})
-
-		if volume.MountCount < 1 {
-			doMount = true
-			connInfo = volume.ConnectionInfo
-		}
-
-		volume.Mountpoint = mountPath
-		volume.MountCount++
-
-		logger.Info("volume-ref-count-incremented", lager.Data{"name": volume.Name, "count": volume.MountCount})
-
-		if err := d.persistState(driverhttp.EnvWithLogger(logger, env)); err != nil {
-			logger.Error("persist-state-failed", err)
-			return dockerdriver.MountResponse{Err: fmt.Sprintf("persist state failed when mounting: %s", err.Error())}
-		}
-
-		return dockerdriver.MountResponse{Mountpoint: volume.Mountpoint}
-	}()
-
-	if ret.Err != "" {
-		return ret
-	}
-
-	if doMount {
-		mountStartTime := d.time.Now()
-
-		err := d.mount(driverhttp.EnvWithLogger(logger, env), connInfo, mountPath)
-
-		mountEndTime := d.time.Now()
-		mountDuration := mountEndTime.Sub(mountStartTime)
-		if mountDuration > 8*time.Second {
-			logger.Error("mount-duration-too-high", nil, lager.Data{"mount-duration-in-second": mountDuration / time.Second, "warning": "This may result in container creation failure!"})
-		}
-
-		func() {
-			d.volumesLock.Lock()
-			defer d.volumesLock.Unlock()
-
-			volume := d.volumes[mountRequest.Name]
-			if volume == nil {
-				ret = dockerdriver.MountResponse{Err: fmt.Sprintf("Volume '%s' not found", mountRequest.Name)}
-			} else if err != nil {
-				if _, ok := err.(dockerdriver.SafeError); ok {
-					errBytes, m_err := json.Marshal(err)
-					if m_err != nil {
-						logger.Error("failed-to-marshal-safeerror", m_err)
-						volume.mountError = err.Error()
-					}
-					volume.mountError = string(errBytes)
-				} else {
-					volume.mountError = err.Error()
-				}
-			}
-		}()
-
-	}
-
-	return func() dockerdriver.MountResponse {
-		d.volumesLock.Lock()
-		defer d.volumesLock.Unlock()
-
-		volume := d.volumes[mountRequest.Name]
-		if volume == nil {
-			return dockerdriver.MountResponse{Err: fmt.Sprintf("Volume '%s' not found", mountRequest.Name)}
-		} else if volume.mountError != "" {
-			return dockerdriver.MountResponse{Err: volume.mountError}
-		} else {
-			// Check the volume to make sure it's still mounted before handing it out again.
-			if !doMount && !d.check(driverhttp.EnvWithLogger(logger, env), volume.Name, volume.Mountpoint) {
-				if err := d.mount(driverhttp.EnvWithLogger(logger, env), volume.ConnectionInfo, mountPath); err != nil {
-					logger.Error("remount-volume-failed", err)
-					return dockerdriver.MountResponse{Err: fmt.Sprintf("Error remounting volume: %s", err.Error())}
-				}
-			}
-			return dockerdriver.MountResponse{Mountpoint: volume.Mountpoint}
-		}
-	}()
-}
-
-func (d *S3Driver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.UnmountRequest) dockerdriver.ErrorResponse {
-	logger := env.Logger().Session("unmount", lager.Data{"volume": unmountRequest.Name})
-
-	if unmountRequest.Name == "" {
-		return dockerdriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
-	}
-
-	d.volumesLock.Lock()
-	defer d.volumesLock.Unlock()
-
-	volume, ok := d.volumes[unmountRequest.Name]
-	if !ok {
-		logger.Error("failed-no-such-volume-found", fmt.Errorf("could not find volume %s", unmountRequest.Name))
-
-		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' not found", unmountRequest.Name)}
-	}
-
-	if volume.Mountpoint == "" {
-		errText := "Volume not previously mounted"
-		logger.Error("failed-mountpoint-not-assigned", errors.New(errText))
-		return dockerdriver.ErrorResponse{Err: errText}
-	}
-
-	if volume.MountCount == 1 {
-		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), unmountRequest.Name, volume.Mountpoint, true); err != nil {
-			return dockerdriver.ErrorResponse{Err: err.Error()}
-		}
-	}
-
-	volume.MountCount--
-	logger.Info("volume-ref-count-decremented", lager.Data{"name": volume.Name, "count": volume.MountCount})
-
-	if volume.MountCount < 1 {
-		delete(d.volumes, unmountRequest.Name)
-	}
-
-	if err := d.persistState(driverhttp.EnvWithLogger(logger, env)); err != nil {
-		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("failed to persist state when unmounting: %s", err.Error())}
-	}
-
-	return dockerdriver.ErrorResponse{}
-}
-
 func (d S3Driver) Capabilities(env dockerdriver.Env) dockerdriver.CapabilitiesResponse {
 	return dockerdriver.CapabilitiesResponse{
 		Capabilities: dockerdriver.CapabilityInfo{Scope: "local"},
 	}
-}
-
-func (d *S3Driver) restoreState(env dockerdriver.Env) {
-	logger := env.Logger().Session("restore-state")
-	logger.Info("start")
-	defer logger.Info("end")
-
-	stateFile := filepath.Join(d.mountPathRoot, "driver-state.json")
-
-	stateData, err := d.ioutil.ReadFile(stateFile)
-	if err != nil {
-		logger.Info("failed-to-read-state-file", lager.Data{"err": err, "stateFile": stateFile})
-		return
-	}
-
-	state := map[string]*S3VolumeInfo{}
-	err = json.Unmarshal(stateData, &state)
-
-	logger.Info("state", lager.Data{"state": state})
-
-	if err != nil {
-		logger.Error("failed-to-unmarshall-state", err, lager.Data{"stateFile": stateFile})
-		return
-	}
-	logger.Info("state-restored", lager.Data{"state-file": stateFile})
-
-	d.volumesLock.Lock()
-	d.volumes = state
-	d.volumesLock.Unlock()
-
-	logger.Info("remount-volumes-from-state", lager.Data{"state": state})
-	for _, volume := range d.volumes {
-		if volume.MountCount == 0 {
-			continue
-		}
-		if volume.ConnectionInfo.Bucket == "" {
-			d.volumesLock.Lock()
-			delete(d.volumes, volume.Name)
-			os.Remove(volume.Mountpoint)
-			d.volumesLock.Unlock()
-			continue
-		}
-		resp := d.Mount(env, dockerdriver.MountRequest{
-			Name: volume.Name,
-		})
-		if resp.Err != "" {
-			logger.Error("failed-to-mount-volume", fmt.Errorf(resp.Err), lager.Data{"name": volume.Name, "bucket": volume.ConnectionInfo.Bucket})
-		}
-	}
-	d.volumesLock.Lock()
-	defer d.volumesLock.Unlock()
-	err = d.persistState(driverhttp.EnvWithLogger(logger, env))
-	if err != nil {
-		logger.Error("persist-state-failed", err)
-	}
-}
-
-func (d *S3Driver) persistState(env dockerdriver.Env) error {
-	logger := env.Logger().Session("persist-state")
-	logger.Info("start")
-	defer logger.Info("end")
-
-	orig := d.osHelper.Umask(000)
-	defer d.osHelper.Umask(orig)
-
-	stateFile := d.mountPath(env, "driver-state.json")
-
-	stateData, err := json.Marshal(d.volumes)
-	if err != nil {
-		logger.Error("failed-to-marshall-state", err)
-		return err
-	}
-
-	err = d.ioutil.WriteFile(stateFile, stateData, os.ModePerm)
-	if err != nil {
-		logger.Error("failed-to-write-state-file", err, lager.Data{"stateFile": stateFile})
-		return err
-	}
-
-	logger.Debug("state-saved", lager.Data{"state-file": stateFile})
-	return nil
-}
-
-func (d *S3Driver) mountPath(env dockerdriver.Env, volumeId string) string {
-	logger := env.Logger().Session("mount-path")
-	orig := d.osHelper.Umask(000)
-	defer d.osHelper.Umask(orig)
-
-	dir, err := d.filepath.Abs(d.mountPathRoot)
-	if err != nil {
-		logger.Fatal("abs-failed", err)
-	}
-
-	if err := d.os.MkdirAll(dir, os.ModePerm); err != nil {
-		logger.Fatal("mkdir-rootpath-failed", err)
-	}
-
-	return filepath.Join(dir, volumeId)
-}
-
-func (d *S3Driver) unmount(logger lager.Logger, name string, mountPath string, removeMountPoint bool) error {
-	logger = logger.Session("unmount")
-	logger.Info("start")
-	defer logger.Info("end")
-
-	exists, err := d.mountChecker.Exists(mountPath)
-	if err != nil {
-		logger.Error("failed-proc-mounts-check", err, lager.Data{"mountpoint": mountPath})
-		return err
-	}
-
-	if !exists {
-		if removeMountPoint {
-			err := d.os.Remove(mountPath)
-			if err != nil {
-				errText := fmt.Sprintf("Volume %s does not exist (path: %s) and unable to remove mount directory", name, mountPath)
-				logger.Info("mountpoint-not-found", lager.Data{"msg": errText})
-				return errors.New(errText)
-			}
-		}
-
-		errText := fmt.Sprintf("Volume %s does not exist (path: %s)", name, mountPath)
-		logger.Info("mountpoint-not-found", lager.Data{"msg": errText})
-		return errors.New(errText)
-	}
-
-	logger.Info("unmount-volume-folder", lager.Data{"mountpath": mountPath})
-
-	err = goofys.TryUnmount(mountPath)
-	if err != nil {
-		logger.Error("unmount-failed", err)
-		return fmt.Errorf("Error unmounting volume: %s", err.Error())
-	}
-
-	if removeMountPoint {
-		err = d.os.Remove(mountPath)
-		if err != nil {
-			logger.Error("remove-mountpoint-failed", err)
-			return fmt.Errorf("Error removing mountpoint: %s", err.Error())
-		}
-	}
-
-	logger.Info("unmounted-volume")
-
-	return nil
-}
-
-func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPath string) error {
-	logger := env.Logger().Session("mount", lager.Data{"bucket": connInfo.Bucket, "target": mountPath})
-	logger.Info("start")
-	defer logger.Info("end")
-
-	if connInfo.Bucket == "" {
-		err := errors.New("no source information")
-		logger.Error("unable-to-extract-source", err)
-		return err
-	}
-	if connInfo.AccessKeyId == "" {
-		err := errors.New("no access key id")
-		logger.Error("unable-to-extract-access-key-id", err)
-		return err
-	}
-	if connInfo.SecretAccessKey == "" {
-		err := errors.New("no secret access key")
-		logger.Error("unable-to-extract-secret-access-key", err)
-		return err
-	}
-
-	uid, gid := currentUserAndGroup()
-
-	if _, err := os.Stat(mountPath); os.IsNotExist(err) {
-		orig := d.osHelper.Umask(000)
-		defer d.osHelper.Umask(orig)
-
-		err := d.os.MkdirAll(mountPath, os.ModePerm)
-		if err != nil {
-			logger.Error("create-mountdir-failed", err)
-			return err
-		}
-
-		err = d.os.Chown(mountPath, uid, gid)
-		if err != nil {
-			logger.Error("chown-mountdir-failed", err)
-			return err
-		}
-	}
-
-	_, _, err := goofys.Mount(context.Background(), connInfo.Bucket, &goofys.Config{
-		MountPoint: mountPath,
-		DirMode:    0777,
-		FileMode:   0644,
-		MountOptions: map[string]string{
-			"allow_other": "",
-		},
-		Uid: uint32(uid),
-		Gid: uint32(gid),
-
-		Endpoint:       connInfo.Host,
-		AccessKey:      connInfo.AccessKeyId,
-		SecretKey:      connInfo.SecretAccessKey,
-		Region:         connInfo.Region,
-		RegionSet:      connInfo.RegionSet,
-		StorageClass:   connInfo.StorageClass,
-		UseContentType: connInfo.UseContentType,
-		UseSSE:         connInfo.UseSSE,
-		UseKMS:         connInfo.UseKMS,
-		ACL:            connInfo.ACL,
-		Subdomain:      connInfo.Subdomain,
-	})
-	if err != nil {
-		logger.Error("mount-failed: ", err)
-		rm_err := d.os.Remove(mountPath)
-		if rm_err != nil {
-			logger.Error("mountpoint-remove-failed", rm_err, lager.Data{"mount-path": mountPath})
-		}
-	}
-	return err
 }
 
 func (d *S3Driver) check(env dockerdriver.Env, name, mountPoint string) bool {
@@ -644,24 +274,4 @@ func (d *S3Driver) check(env dockerdriver.Env, name, mountPoint string) bool {
 		return false
 	}
 	return true
-}
-
-func (d *S3Driver) GracefulShutdown(logger lager.Logger) {
-	d.volumesLock.Lock()
-	defer d.volumesLock.Unlock()
-	for _, volume := range d.volumes {
-		if volume.MountCount == 0 {
-			continue
-		}
-		if volume.ConnectionInfo.Bucket == "" {
-			delete(d.volumes, volume.Name)
-		}
-		err := d.unmount(logger, volume.Name, volume.Mountpoint, false)
-		logger.Error("failed-to-mount-volume", err, lager.Data{"name": volume.Name, "bucket": volume.ConnectionInfo.Bucket})
-	}
-
-	err := d.persistState(driverhttp.NewHttpDriverEnv(logger, context.TODO()))
-	if err != nil {
-		logger.Error("persist-state-failed", err)
-	}
 }
