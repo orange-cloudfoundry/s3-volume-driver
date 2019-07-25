@@ -161,8 +161,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		return err
 	}
 
-	uid, gid := utils.CurrentUserAndGroup()
-
+	uid, gid := utils.VcapUserAndGroup()
 	if _, err := os.Stat(mountPath); os.IsNotExist(err) {
 		orig := d.osHelper.Umask(000)
 		defer d.osHelper.Umask(orig)
