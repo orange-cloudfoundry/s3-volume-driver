@@ -9,7 +9,9 @@ import (
 	"github.com/cloudfoundry/volumedriver/oshelper"
 	"github.com/orange-cloudfoundry/s3-volume-driver"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	cf_http "code.cloudfoundry.org/cfhttp"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
@@ -121,6 +123,10 @@ func main() {
 		invoker.NewRealInvoker(),
 	)
 
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+
 	if *transport == "tcp" {
 		localDriverServer = createS3DriverServer(logger, client, *atAddress, *driversPath, false, false)
 	} else if *transport == "tcp-json" {
@@ -143,6 +149,15 @@ func main() {
 	logger.Info("started")
 
 	untilTerminated(logger, process)
+
+	// graceful shutdown by unmounting before stop
+	go func() {
+		<-sigs
+		<-process.Wait()
+		client.GracefulShutdown(logger)
+		done <- true
+	}()
+	<-done
 }
 
 func exitOnFailure(logger lager.Logger, err error) {
