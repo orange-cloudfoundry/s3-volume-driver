@@ -8,6 +8,8 @@ type Mounter struct {
 }
 
 type Mount struct {
+	Uid             int
+	Gid             int
 	MountPoint      string
 	MountOptions    map[string]string
 	AccessKeyId     string

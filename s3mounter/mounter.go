@@ -6,7 +6,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/kahing/goofys/api"
 	"github.com/orange-cloudfoundry/s3-volume-driver/params"
-	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
 	"os"
 )
 
@@ -21,15 +20,14 @@ func mount(p params.Mount) (*fuse.MountedFileSystem, error) {
 		mountOptions = make(map[string]string)
 	}
 	mountOptions["allow_other"] = ""
-	uid, gid := utils.VcapUserAndGroup()
 	_, mfs, err := goofys.Mount(context.Background(), p.Bucket, &goofys.Config{
 		MountPoint: p.MountPoint,
 
 		DirMode:      0755,
 		FileMode:     0644,
 		MountOptions: mountOptions,
-		Uid:          uint32(uid),
-		Gid:          uint32(gid),
+		Uid:          uint32(p.Uid),
+		Gid:          uint32(p.Gid),
 
 		Endpoint:       p.Endpoint,
 		AccessKey:      p.AccessKeyId,
