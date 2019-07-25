@@ -67,13 +67,13 @@ var mounterPath = flag.String(
 
 var mounterLogDir = flag.String(
 	"mounterLogDir",
-	"/tmp/mounterlog",
+	"/tmp",
 	"Where to place logs for s3mounter daemon",
 )
 
 var mounterPidDir = flag.String(
-	"mounterLogDir",
-	"/tmp/mounterpid",
+	"mounterPidDir",
+	"/tmp",
 	"Where to place pid files for s3mounter daemon",
 )
 
