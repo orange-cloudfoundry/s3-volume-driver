@@ -25,9 +25,9 @@ type S3VolumeInfo struct {
 }
 
 type ConnectionInfo struct {
-	AccessKeyId     string `mapstructure:"-"`
+	AccessKeyId     string `mapstructure:"access_key_id" json:"-"`
 	Bucket          string `mapstructure:"bucket"`
-	SecretAccessKey string `mapstructure:"-"`
+	SecretAccessKey string `mapstructure:"secret_access_key" json:"-"`
 	Endpoint        string `mapstructure:"endpoint"`
 	Region          string `mapstructure:"region"`
 	RegionSet       bool   `mapstructure:"region_set"`
@@ -35,7 +35,7 @@ type ConnectionInfo struct {
 	UseContentType  bool   `mapstructure:"use_content_type"`
 	UseSSE          bool   `mapstructure:"use_sse"`
 	UseKMS          bool   `mapstructure:"use_kms"`
-	KMSKeyID        string `mapstructure:"-"`
+	KMSKeyID        string `mapstructure:"kms_key_id" json:"-"`
 	ACL             string `mapstructure:"acl"`
 	Subdomain       bool   `mapstructure:"subdomain"`
 }
