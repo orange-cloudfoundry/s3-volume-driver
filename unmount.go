@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kahing/goofys/api"
+	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
+	"syscall"
 )
 
 func (d *S3Driver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.UnmountRequest) dockerdriver.ErrorResponse {
@@ -33,7 +35,7 @@ func (d *S3Driver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.Unm
 	}
 
 	if volume.MountCount == 1 {
-		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), unmountRequest.Name, volume.Mountpoint); err != nil {
+		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), unmountRequest.Name, volume.Mountpoint, volume.Name); err != nil {
 			return dockerdriver.ErrorResponse{Err: err.Error()}
 		}
 	}
@@ -52,7 +54,7 @@ func (d *S3Driver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.Unm
 	return dockerdriver.ErrorResponse{}
 }
 
-func (d *S3Driver) unmount(logger lager.Logger, name string, mountPath string) error {
+func (d *S3Driver) unmount(logger lager.Logger, name, mountPath, volumeName string) error {
 	logger = logger.Session("unmount")
 	logger.Info("start")
 	defer logger.Info("end")
@@ -82,6 +84,14 @@ func (d *S3Driver) unmount(logger lager.Logger, name string, mountPath string) e
 	if err != nil {
 		logger.Error("unmount-failed", err)
 		return fmt.Errorf("Error unmounting volume: %s", err.Error())
+	}
+
+	mounterPid := utils.MounterPid(d.mounterBoot.PidDir, volumeName)
+	if mounterPid > 0 {
+		err := syscall.Kill(mounterPid, syscall.SIGINT)
+		if err != nil {
+			logger.Error("sigint-mounter-failed", err)
+		}
 	}
 
 	err = d.os.Remove(mountPath)

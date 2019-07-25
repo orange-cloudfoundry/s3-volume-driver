@@ -4,11 +4,12 @@ import (
 	"code.cloudfoundry.org/dockerdriver"
 	"code.cloudfoundry.org/dockerdriver/driverhttp"
 	"code.cloudfoundry.org/lager"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kahing/goofys/api"
+	"github.com/orange-cloudfoundry/s3-volume-driver/params"
+	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,6 +27,7 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 	var doMount bool
 	var connInfo ConnectionInfo
 	var mountPath string
+	var volumeName string
 
 	ret := func() dockerdriver.MountResponse {
 
@@ -45,6 +47,7 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 		if volume.MountCount < 1 {
 			doMount = true
 			connInfo = volume.ConnectionInfo
+			volumeName = volume.Name
 		}
 
 		volume.Mountpoint = mountPath
@@ -67,7 +70,7 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 	if doMount {
 		mountStartTime := d.time.Now()
 
-		err := d.mount(driverhttp.EnvWithLogger(logger, env), connInfo, mountPath)
+		err := d.mount(driverhttp.EnvWithLogger(logger, env), connInfo, mountPath, volumeName)
 
 		mountEndTime := d.time.Now()
 		mountDuration := mountEndTime.Sub(mountStartTime)
@@ -110,7 +113,7 @@ func (d *S3Driver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRe
 		} else {
 			// Check the volume to make sure it's still mounted before handing it out again.
 			if !doMount && !d.check(driverhttp.EnvWithLogger(logger, env), volume.Name, volume.Mountpoint) {
-				if err := d.mount(driverhttp.EnvWithLogger(logger, env), volume.ConnectionInfo, mountPath); err != nil {
+				if err := d.mount(driverhttp.EnvWithLogger(logger, env), volume.ConnectionInfo, mountPath, volume.Name); err != nil {
 					logger.Error("remount-volume-failed", err)
 					return dockerdriver.MountResponse{Err: fmt.Sprintf("Error remounting volume: %s", err.Error())}
 				}
@@ -137,7 +140,7 @@ func (d *S3Driver) mountPath(env dockerdriver.Env, volumeId string) string {
 	return filepath.Join(dir, volumeId)
 }
 
-func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPath string) error {
+func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPath, volumeName string) error {
 	logger := env.Logger().Session("mount", lager.Data{"bucket": connInfo.Bucket, "target": mountPath})
 	logger.Info("start")
 	defer logger.Info("end")
@@ -158,7 +161,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		return err
 	}
 
-	uid, gid := currentUserAndGroup()
+	uid, gid := utils.CurrentUserAndGroup()
 
 	if _, err := os.Stat(mountPath); os.IsNotExist(err) {
 		orig := d.osHelper.Umask(000)
@@ -177,34 +180,45 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		}
 	}
 
-	_, _, err := goofys.Mount(context.Background(), connInfo.Bucket, &goofys.Config{
-		MountPoint: mountPath,
-		DirMode:    0755,
-		FileMode:   0644,
-		MountOptions: map[string]string{
-			"allow_other": "",
-		},
-		Uid: uint32(uid),
-		Gid: uint32(gid),
+	b, _ := json.Marshal(params.Mounter{
+		MountParams: params.Mount{
+			MountPoint:   mountPath,
+			MountOptions: connInfo.MountOptions,
+			Bucket:       connInfo.Bucket,
 
-		Endpoint:       connInfo.Endpoint,
-		AccessKey:      connInfo.AccessKeyId,
-		SecretKey:      connInfo.SecretAccessKey,
-		Region:         connInfo.Region,
-		RegionSet:      connInfo.RegionSet,
-		StorageClass:   connInfo.StorageClass,
-		UseContentType: connInfo.UseContentType,
-		UseSSE:         connInfo.UseSSE,
-		UseKMS:         connInfo.UseKMS,
-		ACL:            connInfo.ACL,
-		Subdomain:      connInfo.Subdomain,
+
+			Endpoint:        connInfo.Endpoint,
+			AccessKeyId:     connInfo.AccessKeyId,
+			SecretAccessKey: connInfo.SecretAccessKey,
+			Region:          connInfo.Region,
+			RegionSet:       connInfo.RegionSet,
+			StorageClass:    connInfo.StorageClass,
+			UseContentType:  connInfo.UseContentType,
+			UseSSE:          connInfo.UseSSE,
+			UseKMS:          connInfo.UseKMS,
+			ACL:             connInfo.ACL,
+			Subdomain:       connInfo.Subdomain,
+			KMSKeyID:        connInfo.KMSKeyID,
+		},
+		VolumeName: volumeName,
+		LogFolder:  d.mounterBoot.LogDir,
+		PidFolder:  d.mounterBoot.PidDir,
 	})
+	_, err := d.invoker.Invoke(env, d.mounterBoot.MounterPath, []string{string(b)})
 	if err != nil {
-		logger.Error("mount-failed: ", err)
-		rm_err := d.os.Remove(mountPath)
-		if rm_err != nil {
-			logger.Error("mountpoint-remove-failed", rm_err, lager.Data{"mount-path": mountPath})
-		}
+		return err
 	}
-	return err
+
+	pidMounter := utils.MounterPid(d.mounterBoot.PidDir, volumeName)
+	if pidMounter > 0 {
+		// mounter is running
+		return nil
+	}
+
+	logPath := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
+	b, err = ioutil.ReadFile(logPath)
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf(string(b))
 }

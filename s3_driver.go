@@ -25,19 +25,20 @@ type S3VolumeInfo struct {
 }
 
 type ConnectionInfo struct {
-	AccessKeyId     string `mapstructure:"access_key_id" json:"-"`
-	Bucket          string `mapstructure:"bucket"`
-	SecretAccessKey string `mapstructure:"secret_access_key" json:"-"`
-	Endpoint        string `mapstructure:"endpoint"`
-	Region          string `mapstructure:"region"`
-	RegionSet       bool   `mapstructure:"region_set"`
-	StorageClass    string `mapstructure:"storage_class"`
-	UseContentType  bool   `mapstructure:"use_content_type"`
-	UseSSE          bool   `mapstructure:"use_sse"`
-	UseKMS          bool   `mapstructure:"use_kms"`
-	KMSKeyID        string `mapstructure:"kms_key_id" json:"-"`
-	ACL             string `mapstructure:"acl"`
-	Subdomain       bool   `mapstructure:"subdomain"`
+	AccessKeyId     string            `mapstructure:"access_key_id" json:"-"`
+	Bucket          string            `mapstructure:"bucket"`
+	SecretAccessKey string            `mapstructure:"secret_access_key" json:"-"`
+	Endpoint        string            `mapstructure:"endpoint"`
+	Region          string            `mapstructure:"region"`
+	RegionSet       bool              `mapstructure:"region_set"`
+	StorageClass    string            `mapstructure:"storage_class"`
+	UseContentType  bool              `mapstructure:"use_content_type"`
+	UseSSE          bool              `mapstructure:"use_sse"`
+	UseKMS          bool              `mapstructure:"use_kms"`
+	KMSKeyID        string            `mapstructure:"kms_key_id" json:"-"`
+	ACL             string            `mapstructure:"acl"`
+	Subdomain       bool              `mapstructure:"subdomain"`
+	MountOptions    map[string]string `mapstructure:"mount_options"`
 }
 
 type OsHelper interface {
@@ -55,6 +56,13 @@ type S3Driver struct {
 	mountPathRoot string
 	osHelper      OsHelper
 	invoker       invoker.Invoker
+	mounterBoot   MounterBoot
+}
+
+type MounterBoot struct {
+	MounterPath string
+	LogDir      string
+	PidDir      string
 }
 
 func NewS3Driver(
@@ -67,6 +75,7 @@ func NewS3Driver(
 	mountPathRoot string,
 	oshelper OsHelper,
 	invoker invoker.Invoker,
+	mounterBoot MounterBoot,
 ) *S3Driver {
 	d := &S3Driver{
 		volumes:       map[string]*S3VolumeInfo{},
@@ -78,6 +87,7 @@ func NewS3Driver(
 		mountPathRoot: mountPathRoot,
 		osHelper:      oshelper,
 		invoker:       invoker,
+		mounterBoot:   mounterBoot,
 	}
 
 	ctx := context.TODO()
@@ -237,7 +247,7 @@ func (d *S3Driver) Remove(env dockerdriver.Env, removeRequest dockerdriver.Remov
 	}
 
 	if vol.Mountpoint != "" {
-		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), removeRequest.Name, vol.Mountpoint); err != nil {
+		if err := d.unmount(driverhttp.EnvWithLogger(logger, env).Logger(), removeRequest.Name, vol.Mountpoint, vol.Name); err != nil {
 			return dockerdriver.ErrorResponse{Err: err.Error()}
 		}
 	}

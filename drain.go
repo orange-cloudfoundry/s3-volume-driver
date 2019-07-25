@@ -14,7 +14,7 @@ func (d *S3Driver) Drain(env dockerdriver.Env) error {
 	// flush any volumes that are still in our map
 	for key, mount := range d.volumes {
 		if mount.Mountpoint != "" && mount.MountCount > 0 {
-			err := d.unmount(logger, mount.Name, mount.Mountpoint)
+			err := d.unmount(logger, mount.Name, mount.Mountpoint, mount.Name)
 			if err != nil {
 				logger.Error("drain-unmount-failed", err, lager.Data{"mount-name": mount.Name, "mount-point": mount.Mountpoint})
 			}

@@ -16,16 +16,25 @@ require (
 	github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40 // indirect
 	github.com/cloudfoundry/volumedriver v0.0.0-20190624205815-521b41315311
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/jacobsa/fuse v0.0.0-20180417054321-cd3959611bcb
 	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8 // indirect
+	github.com/kahing/go-xattr v1.1.1 // indirect
 	github.com/kahing/goofys v0.20.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
+	github.com/kr/pretty v0.1.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
-	github.com/sevlyar/go-daemon v0.1.5 // indirect
+	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
+	github.com/sevlyar/go-daemon v0.1.5
 	github.com/shirou/gopsutil v2.18.12+incompatible // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc
 	github.com/tedsuo/rata v1.0.0
 	github.com/urfave/cli v1.20.0 // indirect
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7 // indirect
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	launchpad.net/gocheck v0.0.0-20140225173054-000000000087 // indirect
 )

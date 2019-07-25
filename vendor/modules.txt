@@ -74,13 +74,17 @@ github.com/cloudfoundry/volumedriver/oshelper
 # github.com/go-ole/go-ole v1.2.4
 github.com/go-ole/go-ole
 github.com/go-ole/go-ole/oleutil
+# github.com/hashicorp/errwrap v1.0.0
+github.com/hashicorp/errwrap
+# github.com/hashicorp/go-multierror v1.0.0
+github.com/hashicorp/go-multierror
 # github.com/jacobsa/fuse v0.0.0-20180417054321-cd3959611bcb
 github.com/jacobsa/fuse
+github.com/jacobsa/fuse/fuseutil
 github.com/jacobsa/fuse/fuseops
 github.com/jacobsa/fuse/internal/buffer
 github.com/jacobsa/fuse/internal/freelist
 github.com/jacobsa/fuse/internal/fusekernel
-github.com/jacobsa/fuse/fuseutil
 # github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
 github.com/jinzhu/copier
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
@@ -88,10 +92,14 @@ github.com/jmespath/go-jmespath
 # github.com/kahing/goofys v0.20.0
 github.com/kahing/goofys/api
 github.com/kahing/goofys/internal
+# github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
+github.com/kardianos/osext
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/mitchellh/mapstructure v1.1.2
 github.com/mitchellh/mapstructure
+# github.com/sevlyar/go-daemon v0.1.5
+github.com/sevlyar/go-daemon
 # github.com/shirou/gopsutil v2.18.12+incompatible
 github.com/shirou/gopsutil/mem
 github.com/shirou/gopsutil/internal/common

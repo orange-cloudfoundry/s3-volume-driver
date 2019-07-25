@@ -1,2 +1,3 @@
 # Created by .ignore support plugin (hsz.mobi)
 /cmd/s3driver/s3driver
+/s3mounter/s3mounter

@@ -59,6 +59,24 @@ var mountDir = flag.String(
 	"Path to directory where fake volumes are created",
 )
 
+var mounterPath = flag.String(
+	"mounterPath",
+	"s3mounter",
+	"Path where to find s3mounter binary",
+)
+
+var mounterLogDir = flag.String(
+	"mounterLogDir",
+	"/tmp/mounterlog",
+	"Where to place logs for s3mounter daemon",
+)
+
+var mounterPidDir = flag.String(
+	"mounterLogDir",
+	"/tmp/mounterpid",
+	"Where to place pid files for s3mounter daemon",
+)
+
 var requireSSL = flag.Bool(
 	"requireSSL",
 	false,
@@ -126,6 +144,11 @@ func main() {
 		*mountDir,
 		oshelper.NewOsHelper(),
 		invoker.NewRealInvoker(),
+		s3driver.MounterBoot{
+			MounterPath: *mounterPath,
+			LogDir:      *mounterLogDir,
+			PidDir:      *mounterPidDir,
+		},
 	)
 
 	if *transport == "tcp" {
