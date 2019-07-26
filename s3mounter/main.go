@@ -47,6 +47,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	mounterStartFile, err := os.Create(utils.MounterStartedFile(mounterParams.StartFolder, mounterParams.VolumeName))
+	if err != nil {
+		log.Fatal(err)
+	}
+	mounterStartFile.Close()
+
 	if err = mfs.Join(context.Background()); err != nil {
 		log.Fatalf("Join: %v", err)
 	}

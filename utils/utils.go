@@ -71,3 +71,8 @@ func MounterLogFile(logFolder, volumeName string) string {
 	logFolder = strings.TrimSuffix(logFolder, "/")
 	return fmt.Sprintf("%s/mounter-%s.log", logFolder, volumeName)
 }
+
+func MounterStartedFile(startFolder, volumeName string) string {
+	startFolder = strings.TrimSuffix(startFolder, "/")
+	return fmt.Sprintf("%s/mounter-start-%s.log", startFolder, volumeName)
+}

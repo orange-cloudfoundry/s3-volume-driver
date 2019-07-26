@@ -63,6 +63,7 @@ type MounterBoot struct {
 	MounterPath string
 	LogDir      string
 	PidDir      string
+	StartDir    string
 }
 
 func NewS3Driver(

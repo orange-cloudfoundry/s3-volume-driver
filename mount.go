@@ -161,7 +161,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		return err
 	}
 
-	uid, gid := utils.VcapUserAndGroup()
+	uid, gid := utils.CurrentUserAndGroup()
 	if _, err := os.Stat(mountPath); os.IsNotExist(err) {
 		orig := d.osHelper.Umask(000)
 		defer d.osHelper.Umask(orig)
@@ -211,15 +211,22 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 	}
 
 	pidMounter := utils.MounterPid(d.mounterBoot.PidDir, volumeName)
-	if pidMounter > 0 {
-		// mounter is running
-		return nil
+	if pidMounter <= 0 {
+		logPath := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
+		b, err = ioutil.ReadFile(logPath)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(string(b))
 	}
 
-	logPath := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
-	b, err = ioutil.ReadFile(logPath)
-	if err != nil {
-		return err
+	startMounter := utils.MounterStartedFile(d.mounterBoot.StartDir, volumeName)
+	for {
+		if _, err := os.Stat(startMounter); os.IsNotExist(err) {
+			continue
+		}
+		break
 	}
-	return fmt.Errorf(string(b))
+	os.Remove(startMounter)
+	return nil
 }
