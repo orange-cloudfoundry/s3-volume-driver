@@ -77,6 +77,12 @@ var mounterPidDir = flag.String(
 	"Where to place pid files for s3mounter daemon",
 )
 
+var mounterStartDir = flag.String(
+	"mounterStartDir",
+	"/tmp",
+	"Where to place start files for s3mounter daemon to notify server that folder is mounted",
+)
+
 var requireSSL = flag.Bool(
 	"requireSSL",
 	false,
@@ -148,6 +154,7 @@ func main() {
 			MounterPath: *mounterPath,
 			LogDir:      *mounterLogDir,
 			PidDir:      *mounterPidDir,
+			StartDir:    *mounterStartDir,
 		},
 	)
 
