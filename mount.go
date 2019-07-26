@@ -219,7 +219,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		}
 		return fmt.Errorf(string(b))
 	}
-
+	time.Sleep(5 * time.Second)
 	startMounter := utils.MounterStartedFile(d.mounterBoot.StartDir, volumeName)
 	for {
 		if _, err := os.Stat(startMounter); os.IsNotExist(err) {
