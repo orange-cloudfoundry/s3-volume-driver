@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kahing/goofys/api"
-	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
-	"syscall"
 )
 
 func (d *S3Driver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.UnmountRequest) dockerdriver.ErrorResponse {
@@ -86,16 +84,6 @@ func (d *S3Driver) unmount(logger lager.Logger, name, mountPath, volumeName stri
 		return fmt.Errorf("Error unmounting volume: %s", err.Error())
 	}
 
-	mounterPid := utils.MounterPid(d.mounterBoot.PidDir, volumeName)
-	if mounterPid > 0 {
-		err := syscall.Kill(mounterPid, syscall.SIGINT)
-		if err != nil {
-			logger.Error("sigint-mounter-failed", err)
-		}
-	}
-
-	mounterLogFile := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
-	d.os.Remove(mounterLogFile)
 	err = d.os.Remove(mountPath)
 	if err != nil {
 		logger.Error("remove-mountpoint-failed", err)
