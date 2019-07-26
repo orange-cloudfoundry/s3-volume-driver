@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Mounter params is mandatory")
 		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
-
+	syscall.Umask(000)
 	var mounterParams params.Mounter
 	err := json.Unmarshal([]byte(os.Args[1]), &mounterParams)
 	if err != nil {
