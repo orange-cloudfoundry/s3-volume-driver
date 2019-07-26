@@ -23,8 +23,8 @@ func mount(p params.Mount) (*fuse.MountedFileSystem, error) {
 	_, mfs, err := goofys.Mount(context.Background(), p.Bucket, &goofys.Config{
 		MountPoint: p.MountPoint,
 
-		DirMode:      0755,
-		FileMode:     0644,
+		DirMode:      0777,
+		FileMode:     0666,
 		MountOptions: mountOptions,
 		Uid:          uint32(p.Uid),
 		Gid:          uint32(p.Gid),
