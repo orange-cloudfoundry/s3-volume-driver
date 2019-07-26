@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"github.com/orange-cloudfoundry/s3-volume-driver/params"
 	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
-	"io/ioutil"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -179,7 +181,7 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		}
 	}
 
-	b, _ := json.Marshal(params.Mounter{
+	return d.startMounter(params.Mounter{
 		MountParams: params.Mount{
 			MountPoint:   mountPath,
 			MountOptions: connInfo.MountOptions,
@@ -202,31 +204,31 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 			KMSKeyID:        connInfo.KMSKeyID,
 		},
 		VolumeName: volumeName,
-		LogFolder:  d.mounterBoot.LogDir,
-		PidFolder:  d.mounterBoot.PidDir,
 	})
-	_, err := d.invoker.Invoke(env, d.mounterBoot.MounterPath, []string{string(b)})
+}
+
+func (d *S3Driver) startMounter(p params.Mounter) error {
+	b, _ := json.Marshal(p)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGUSR1, syscall.SIGUSR2)
+	cmd := exec.Command(d.mounterPath, string(b))
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 
-	pidMounter := utils.MounterPid(d.mounterBoot.PidDir, volumeName)
-	if pidMounter <= 0 {
-		logPath := utils.MounterLogFile(d.mounterBoot.LogDir, volumeName)
-		b, err = ioutil.ReadFile(logPath)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf(string(b))
+	sig := <-sigs
+	switch sig {
+	case syscall.SIGUSR2:
+		return fmt.Errorf("something went wrong with mounter")
+	case syscall.SIGUSR1:
+		return nil
 	}
-	time.Sleep(5 * time.Second)
-	startMounter := utils.MounterStartedFile(d.mounterBoot.StartDir, volumeName)
-	for {
-		if _, err := os.Stat(startMounter); os.IsNotExist(err) {
-			continue
-		}
-		break
-	}
-	os.Remove(startMounter)
 	return nil
 }

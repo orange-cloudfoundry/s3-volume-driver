@@ -3,56 +3,48 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/kahing/goofys/api"
 	"github.com/orange-cloudfoundry/s3-volume-driver/params"
-	"github.com/orange-cloudfoundry/s3-volume-driver/utils"
-	"github.com/sevlyar/go-daemon"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"syscall"
+	"time"
 )
 
 func init() {
-	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	goofys.GetLogger("main").SetOutput(os.Stdout)
+	goofys.GetLogger("fuse").SetOutput(os.Stdout)
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("Mounter params is mandatory")
+		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
 
 	var mounterParams params.Mounter
 	err := json.Unmarshal([]byte(os.Args[1]), &mounterParams)
 	if err != nil {
 		log.Fatal(err)
+		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
 
-	cntxt := &daemon.Context{
-		PidFileName: utils.MounterPidFileName(mounterParams.PidFolder, mounterParams.VolumeName),
-		PidFilePerm: 0644,
-		LogFileName: utils.MounterLogFile(mounterParams.LogFolder, mounterParams.VolumeName),
-		LogFilePerm: 0640,
-		Umask:       000,
-	}
-
-	d, err := cntxt.Reborn()
-	if err != nil {
-		log.Fatal("Unable to run: ", err)
-	}
-	if d != nil {
-		return
-	}
-	defer cntxt.Release()
+	formatter := NewLogFormatter(mounterParams.VolumeName)
+	log.SetFormatter(formatter)
+	goofys.GetLogger("main").SetFormatter(formatter)
+	goofys.GetLogger("fuse").SetFormatter(formatter)
 
 	mfs, err := mount(mounterParams.MountParams)
 	if err != nil {
 		log.Fatal(err)
+		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
 
-	mounterStartFile, err := os.Create(utils.MounterStartedFile(mounterParams.StartFolder, mounterParams.VolumeName))
-	if err != nil {
-		log.Fatal(err)
-	}
-	mounterStartFile.Close()
+	syscall.Kill(os.Getppid(), syscall.SIGUSR1)
 
+	time.Sleep(1 * time.Second)
+	log.Info("test")
 	if err = mfs.Join(context.Background()); err != nil {
 		log.Fatalf("Join: %v", err)
 	}

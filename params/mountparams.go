@@ -2,9 +2,6 @@ package params
 
 type Mounter struct {
 	MountParams Mount
-	PidFolder   string
-	LogFolder   string
-	StartFolder string
 	VolumeName  string
 }
 

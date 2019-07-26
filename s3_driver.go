@@ -56,14 +56,7 @@ type S3Driver struct {
 	mountPathRoot string
 	osHelper      OsHelper
 	invoker       invoker.Invoker
-	mounterBoot   MounterBoot
-}
-
-type MounterBoot struct {
-	MounterPath string
-	LogDir      string
-	PidDir      string
-	StartDir    string
+	mounterPath   string
 }
 
 func NewS3Driver(
@@ -76,7 +69,7 @@ func NewS3Driver(
 	mountPathRoot string,
 	oshelper OsHelper,
 	invoker invoker.Invoker,
-	mounterBoot MounterBoot,
+	mounterPath string,
 ) *S3Driver {
 	d := &S3Driver{
 		volumes:       map[string]*S3VolumeInfo{},
@@ -88,7 +81,7 @@ func NewS3Driver(
 		mountPathRoot: mountPathRoot,
 		osHelper:      oshelper,
 		invoker:       invoker,
-		mounterBoot:   mounterBoot,
+		mounterPath:   mounterPath,
 	}
 
 	ctx := context.TODO()

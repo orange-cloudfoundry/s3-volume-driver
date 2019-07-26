@@ -65,24 +65,6 @@ var mounterPath = flag.String(
 	"Path where to find s3mounter binary",
 )
 
-var mounterLogDir = flag.String(
-	"mounterLogDir",
-	"/tmp",
-	"Where to place logs for s3mounter daemon",
-)
-
-var mounterPidDir = flag.String(
-	"mounterPidDir",
-	"/tmp",
-	"Where to place pid files for s3mounter daemon",
-)
-
-var mounterStartDir = flag.String(
-	"mounterStartDir",
-	"/tmp",
-	"Where to place start files for s3mounter daemon to notify server that folder is mounted",
-)
-
 var requireSSL = flag.Bool(
 	"requireSSL",
 	false,
@@ -150,12 +132,7 @@ func main() {
 		*mountDir,
 		oshelper.NewOsHelper(),
 		invoker.NewRealInvoker(),
-		s3driver.MounterBoot{
-			MounterPath: *mounterPath,
-			LogDir:      *mounterLogDir,
-			PidDir:      *mounterPidDir,
-			StartDir:    *mounterStartDir,
-		},
+		*mounterPath,
 	)
 
 	if *transport == "tcp" {
