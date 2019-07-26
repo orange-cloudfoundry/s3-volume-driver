@@ -1,10 +1,5 @@
 package params
 
-type Mounter struct {
-	MountParams Mount
-	VolumeName  string
-}
-
 type Mount struct {
 	Uid             int
 	Gid             int

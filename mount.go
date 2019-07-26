@@ -1,6 +1,7 @@
 package s3driver
 
 import (
+	"bytes"
 	"code.cloudfoundry.org/dockerdriver"
 	"code.cloudfoundry.org/dockerdriver/driverhttp"
 	"code.cloudfoundry.org/lager"
@@ -181,42 +182,43 @@ func (d *S3Driver) mount(env dockerdriver.Env, connInfo ConnectionInfo, mountPat
 		}
 	}
 
-	return d.startMounter(params.Mounter{
-		MountParams: params.Mount{
-			MountPoint:   mountPath,
-			MountOptions: connInfo.MountOptions,
-			Bucket:       connInfo.Bucket,
+	return d.startMounter(volumeName, params.Mount{
+		MountPoint:   mountPath,
+		MountOptions: connInfo.MountOptions,
+		Bucket:       connInfo.Bucket,
 
-			Uid: uid,
-			Gid: gid,
+		Uid: uid,
+		Gid: gid,
 
-			Endpoint:        connInfo.Endpoint,
-			AccessKeyId:     connInfo.AccessKeyId,
-			SecretAccessKey: connInfo.SecretAccessKey,
-			Region:          connInfo.Region,
-			RegionSet:       connInfo.RegionSet,
-			StorageClass:    connInfo.StorageClass,
-			UseContentType:  connInfo.UseContentType,
-			UseSSE:          connInfo.UseSSE,
-			UseKMS:          connInfo.UseKMS,
-			ACL:             connInfo.ACL,
-			Subdomain:       connInfo.Subdomain,
-			KMSKeyID:        connInfo.KMSKeyID,
-		},
-		VolumeName: volumeName,
+		Endpoint:        connInfo.Endpoint,
+		AccessKeyId:     connInfo.AccessKeyId,
+		SecretAccessKey: connInfo.SecretAccessKey,
+		Region:          connInfo.Region,
+		RegionSet:       connInfo.RegionSet,
+		StorageClass:    connInfo.StorageClass,
+		UseContentType:  connInfo.UseContentType,
+		UseSSE:          connInfo.UseSSE,
+		UseKMS:          connInfo.UseKMS,
+		ACL:             connInfo.ACL,
+		Subdomain:       connInfo.Subdomain,
+		KMSKeyID:        connInfo.KMSKeyID,
 	})
 }
 
-func (d *S3Driver) startMounter(p params.Mounter) error {
-	b, _ := json.Marshal(p)
+func (d *S3Driver) startMounter(volumeName string, p params.Mount) error {
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGUSR1, syscall.SIGUSR2)
-	cmd := exec.Command(d.mounterPath, string(b))
+	cmd := exec.Command(d.mounterPath, volumeName)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	b, _ := json.Marshal(p)
+	cmd.Stdin = bytes.NewBuffer(b)
+
 	cmd.Env = os.Environ()
 	err := cmd.Start()
 	if err != nil {

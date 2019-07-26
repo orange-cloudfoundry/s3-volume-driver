@@ -19,23 +19,23 @@ func init() {
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatalf("Mounter params is mandatory")
+		log.Fatalf("Volume name is mandatory")
 		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
 	syscall.Umask(000)
-	var mounterParams params.Mounter
-	err := json.Unmarshal([]byte(os.Args[1]), &mounterParams)
+	var mountParams params.Mount
+	err := json.NewDecoder(os.Stdin).Decode(&mountParams)
 	if err != nil {
 		log.Fatal(err)
 		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
 	}
 
-	formatter := NewLogFormatter(mounterParams.VolumeName)
+	formatter := NewLogFormatter(os.Args[1])
 	log.SetFormatter(formatter)
 	goofys.GetLogger("main").SetFormatter(formatter)
 	goofys.GetLogger("fuse").SetFormatter(formatter)
 
-	mfs, err := mount(mounterParams.MountParams)
+	mfs, err := mount(mountParams)
 	if err != nil {
 		log.Fatal(err)
 		syscall.Kill(os.Getppid(), syscall.SIGUSR2)
